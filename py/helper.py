@@ -15,8 +15,14 @@ class UnicodeProcessor:
     def __init__(self, unicode_indexer_path: str):
         with open(unicode_indexer_path, "r") as f:
             self.indexer = json.load(f)
+        # Initialize Chinese pinyin converter
+        from pinyin_converter import ChinesePinyinConverter
+        self.pinyin_converter = ChinesePinyinConverter()
 
     def _preprocess_text(self, text: str) -> str:
+        # Convert Chinese to pinyin first
+        text = self.pinyin_converter.chinese_to_pinyin_with_spaces(text)
+        
         # TODO: Need advanced normalizer for better performance
         text = normalize("NFKD", text)
 

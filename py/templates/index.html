@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TTS ONNX - 复古终端</title>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap");
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: "VT323", monospace;
+                background: #1a1a1a;
+                color: #00ff00;
+                min-height: 100vh;
+                image-rendering: pixelated;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: crisp-edges;
+            }
+
+            .terminal {
+                background: #0a0a0a;
+                border: 4px solid #333;
+                box-shadow:
+                    0 0 0 4px #1a1a1a,
+                    0 0 0 8px #333,
+                    0 0 20px rgba(0, 255, 0, 0.2);
+                margin: 20px auto;
+                max-width: 800px;
+                position: relative;
+            }
+
+            .terminal-header {
+                background: #333;
+                padding: 8px;
+                border-bottom: 2px solid #555;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .terminal-button {
+                width: 12px;
+                height: 12px;
+                border: 2px solid #000;
+            }
+
+            .terminal-button.red {
+                background: #ff3333;
+            }
+            .terminal-button.yellow {
+                background: #ffff33;
+            }
+            .terminal-button.green {
+                background: #33ff33;
+            }
+
+            .terminal-title {
+                color: #ccc;
+                font-size: 14px;
+                margin-left: auto;
+                margin-right: 20px;
+            }
+
+            .terminal-body {
+                padding: 20px;
+                min-height: 600px;
+            }
+
+            .scanline {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: rgba(0, 255, 0, 0.1);
+                animation: scanline 8s linear infinite;
+                pointer-events: none;
+            }
+
+            @keyframes scanline {
+                0% {
+                    top: 0;
+                }
+                100% {
+                    top: 100%;
+                }
+            }
+
+            .title {
+                font-family: "Press Start 2P", cursive;
+                font-size: 24px;
+                text-align: center;
+                margin-bottom: 10px;
+                color: #00ff00;
+                text-shadow: 2px 2px 0px #005500;
+                animation: flicker 2s infinite alternate;
+            }
+
+            @keyframes flicker {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.8;
+                }
+            }
+
+            .subtitle {
+                text-align: center;
+                color: #888;
+                margin-bottom: 20px;
+                font-size: 16px;
+            }
+
+            .info-box {
+                border: 2px solid #333;
+                background: #111;
+                padding: 15px;
+                margin-bottom: 20px;
+                position: relative;
+            }
+
+            .info-box::before {
+                content: ">";
+                position: absolute;
+                left: -10px;
+                top: 15px;
+                color: #00ff00;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: 8px;
+                color: #00ff00;
+                font-size: 18px;
+            }
+
+            .form-input,
+            .form-select,
+            .form-textarea {
+                width: 100%;
+                background: #0a0a0a;
+                border: 2px solid #333;
+                color: #00ff00;
+                font-family: "VT323", monospace;
+                font-size: 16px;
+                padding: 8px;
+                transition: all 0.2s;
+            }
+
+            .form-input:focus,
+            .form-select:focus,
+            .form-textarea:focus {
+                outline: none;
+                border-color: #00ff00;
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+            }
+
+            .form-textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+
+            .slider-group {
+                margin-bottom: 20px;
+            }
+
+            .slider-label {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                color: #00ff00;
+                font-size: 18px;
+            }
+
+            .slider {
+                width: 100%;
+                height: 8px;
+                background: #333;
+                outline: none;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+
+            .slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 20px;
+                height: 20px;
+                background: #00ff00;
+                cursor: pointer;
+                border: 2px solid #333;
+                image-rendering: pixelated;
+            }
+
+            .slider::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                background: #00ff00;
+                cursor: pointer;
+                border: 2px solid #333;
+            }
+
+            .pixel-btn {
+                background: #333;
+                color: #00ff00;
+                border: 2px solid #555;
+                padding: 12px 24px;
+                font-family: "Press Start 2P", cursive;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-transform: uppercase;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .pixel-btn:hover {
+                background: #444;
+                border-color: #00ff00;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 0 #222;
+            }
+
+            .pixel-btn:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 0 #222;
+            }
+
+            .pixel-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .loading {
+                text-align: center;
+                padding: 40px;
+            }
+
+            .loading-spinner {
+                display: inline-block;
+                width: 40px;
+                height: 40px;
+                border: 4px solid #333;
+                border-top: 4px solid #00ff00;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .audio-result {
+                border: 2px solid #333;
+                background: #111;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+
+            .audio-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+
+            .badge {
+                background: #333;
+                color: #00ff00;
+                padding: 4px 8px;
+                border: 1px solid #555;
+                font-size: 12px;
+            }
+
+            .audio-player {
+                width: 100%;
+                background: #0a0a0a;
+                border: 2px solid #333;
+            }
+
+            .params-toggle {
+                background: #222;
+                border: 2px solid #444;
+                color: #888;
+                padding: 8px;
+                cursor: pointer;
+                margin-top: 10px;
+                font-size: 14px;
+            }
+
+            .params-content {
+                display: none;
+                background: #111;
+                border: 2px solid #333;
+                padding: 10px;
+                margin-top: 5px;
+                font-size: 14px;
+            }
+
+            .params-content.show {
+                display: block;
+            }
+
+            .error-box {
+                border: 2px solid #ff3333;
+                background: #1a0a0a;
+                color: #ff6666;
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .grid-3 {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            @media (min-width: 768px) {
+                .grid-3 {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            .blink {
+                animation: blink 1s infinite;
+            }
+
+            @keyframes blink {
+                0%,
+                50% {
+                    opacity: 1;
+                }
+                51%,
+                100% {
+                    opacity: 0;
+                }
+            }
+
+            .hidden {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="terminal">
+            <div class="scanline"></div>
+            <div class="terminal-header">
+                <div class="terminal-button red"></div>
+                <div class="terminal-button yellow"></div>
+                <div class="terminal-button green"></div>
+                <div class="terminal-title">TTS_ONNX终端_v1.0</div>
+            </div>
+
+            <div class="terminal-body">
+                <h1 class="title">TTS ONNX</h1>
+                <p class="subtitle">文本转语音合成系统</p>
+
+                <!-- Language Support Info -->
+                <div class="info-box">
+                    <div
+                        style="
+                            color: #00ff00;
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                        "
+                    >
+                        🌏 多语言支持
+                    </div>
+                    <div style="color: #888; font-size: 16px; line-height: 1.4">
+                        ✅ 支持中文输入（自动转换为拼音）<br />
+                        ✅ 支持中英文混合输入<br />
+                        <div style="margin-top: 8px">
+                            <strong>示例：</strong> 你好世界 → ni hao shi jie |
+                            Hello 你好 world → Hello ni hao world
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Form -->
+                <form id="tts-form">
+                    <!-- Text Input -->
+                    <div class="form-group">
+                        <label class="form-label">> 文本输入:</label>
+                        <textarea
+                            id="text"
+                            name="text"
+                            class="form-textarea"
+                            required
+                        >
+今天早上，我在公园里散步，鸟儿的歌声和微风的吹拂如此悦耳，让我驻足良久，静静聆听。</textarea
+                        >
+                    </div>
+
+                    <!-- Voice Style -->
+                    <div class="form-group">
+                        <label class="form-label">> 语音风格:</label>
+                        <select
+                            id="voice-style"
+                            name="voice-style"
+                            class="form-select"
+                        >
+                            {% for style in voice_styles %}
+                            <option value="{{ style }}">{{ style }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sliders Grid -->
+                    <div class="grid-3">
+                        <!-- Denoising Steps -->
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>去噪强度</span>
+                                <span id="total-step-value">6</span>
+                            </div>
+                            <input
+                                type="range"
+                                id="total-step"
+                                name="total-step"
+                                min="6"
+                                max="20"
+                                value="6"
+                                class="slider"
+                            />
+                        </div>
+
+                        <!-- Speech Speed -->
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>语速</span>
+                                <span id="speed-value">1.05</span>
+                            </div>
+                            <input
+                                type="range"
+                                id="speed"
+                                name="speed"
+                                min="0.8"
+                                max="1.2"
+                                step="0.05"
+                                value="1.05"
+                                class="slider"
+                            />
+                        </div>
+
+                        <!-- Number of Generations -->
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>生成次数</span>
+                                <span id="n-test-value">1</span>
+                            </div>
+                            <input
+                                type="range"
+                                id="n-test"
+                                name="n-test"
+                                min="1"
+                                max="5"
+                                value="1"
+                                class="slider"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div style="text-align: center; margin-top: 30px">
+                        <button
+                            type="submit"
+                            class="pixel-btn"
+                            id="synthesize-btn"
+                        >
+                            [ 合成语音 ]
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Loading State -->
+                <div class="loading hidden" id="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 15px; color: #888">
+                        正在生成语音... 请稍候<span class="blink">_</span>
+                    </p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="error-message"></div>
+
+                <!-- Results Section -->
+                <div class="hidden" id="results">
+                    <div style="margin-top: 30px">
+                        <h2
+                            style="
+                                color: #00ff00;
+                                font-size: 20px;
+                                margin-bottom: 15px;
+                                text-align: center;
+                            "
+                        >
+                            ♪ 生成的音频 ♪
+                        </h2>
+                        <div id="audio-results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Update slider values
+            document
+                .getElementById("total-step")
+                .addEventListener("input", function () {
+                    document.getElementById("total-step-value").textContent =
+                        this.value;
+                });
+
+            document
+                .getElementById("speed")
+                .addEventListener("input", function () {
+                    document.getElementById("speed-value").textContent =
+                        this.value;
+                });
+
+            document
+                .getElementById("n-test")
+                .addEventListener("input", function () {
+                    document.getElementById("n-test-value").textContent =
+                        this.value;
+                });
+
+            // Handle form submission
+            document
+                .getElementById("tts-form")
+                .addEventListener("submit", async function (e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(this);
+                    const data = {
+                        text: formData.get("text"),
+                        voice_style: formData.get("voice-style"),
+                        total_step: parseInt(formData.get("total-step")),
+                        speed: parseFloat(formData.get("speed")),
+                        n_test: parseInt(formData.get("n-test")),
+                    };
+
+                    // Show loading
+                    document
+                        .getElementById("loading")
+                        .classList.remove("hidden");
+                    document.getElementById("synthesize-btn").disabled = true;
+                    document.getElementById("results").classList.add("hidden");
+                    document.getElementById("error-message").innerHTML = "";
+
+                    try {
+                        const response = await fetch("/synthesize", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(data),
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            displayResults(result);
+                        } else {
+                            displayError(
+                                result.error || "An unknown error occurred",
+                            );
+                        }
+                    } catch (error) {
+                        displayError("Network error: " + error.message);
+                    } finally {
+                        document
+                            .getElementById("loading")
+                            .classList.add("hidden");
+                        document.getElementById("synthesize-btn").disabled =
+                            false;
+                    }
+                });
+
+            function displayResults(result) {
+                const resultsDiv = document.getElementById("audio-results");
+                resultsDiv.innerHTML = "";
+
+                result.results.forEach((item, index) => {
+                    const resultItem = document.createElement("div");
+                    resultItem.className = "audio-result";
+                    resultItem.innerHTML = `
+                    <div class="audio-header">
+                        <div class="badge">第 ${index + 1} 次生成</div>
+                        <div class="badge">${item.duration.toFixed(2)}s</div>
+                    </div>
+                    <audio controls class="audio-player">
+                        <source src="${item.url}" type="audio/wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="params-toggle" onclick="toggleParams(${index})">
+                        [+] 使用的参数
+                    </div>
+                    <div class="params-content" id="params-${index}">
+                        <div style="line-height: 1.6;">
+                            <div><strong>文本:</strong> "${result.parameters.text}"</div>
+                            <div><strong>语音风格:</strong> ${result.parameters.voice_style}</div>
+                            <div><strong>去噪步数:</strong> ${result.parameters.total_step}</div>
+                            <div><strong>语速:</strong> ${result.parameters.speed}x</div>
+                        </div>
+                    </div>
+                `;
+                    resultsDiv.appendChild(resultItem);
+                });
+
+                document.getElementById("results").classList.remove("hidden");
+            }
+
+            function toggleParams(index) {
+                const paramsDiv = document.getElementById(`params-${index}`);
+                const toggle = paramsDiv.previousElementSibling;
+
+                if (paramsDiv.classList.contains("show")) {
+                    paramsDiv.classList.remove("show");
+                    toggle.textContent = "[+] 使用的参数";
+                } else {
+                    paramsDiv.classList.add("show");
+                    toggle.textContent = "[-] 使用的参数";
+                }
+            }
+
+            function displayError(message) {
+                const errorDiv = document.getElementById("error-message");
+                errorDiv.innerHTML = `
+                <div class="error-box">
+                    <div style="color: #ff6666; font-weight: bold; margin-bottom: 5px;">! 错误</div>
+                    <div>${message}</div>
+                </div>
+            `;
+            }
+        </script>
+    </body>
+</html>

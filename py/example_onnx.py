@@ -3,7 +3,7 @@ import os
 
 import soundfile as sf
 
-from helper import load_text_to_speech, timer, sanitize_filename, load_voice_style
+from helper import load_text_to_speech, load_voice_style, sanitize_filename, timer
 
 
 def parse_args():
@@ -24,7 +24,7 @@ def parse_args():
 
     # Synthesis parameters
     parser.add_argument(
-        "--total-step", type=int, default=5, help="Number of denoising steps"
+        "--total-step", type=int, default=16, help="Number of denoising steps"
     )
     parser.add_argument(
         "--speed",
@@ -33,7 +33,7 @@ def parse_args():
         help="Speech speed (default: 1.05, higher = faster)",
     )
     parser.add_argument(
-        "--n-test", type=int, default=4, help="Number of times to generate"
+        "--n-test", type=int, default=1, help="Number of times to generate"
     )
 
     # Batch processing
@@ -44,7 +44,7 @@ def parse_args():
         "--voice-style",
         type=str,
         nargs="+",
-        default=["assets/voice_styles/M1.json"],
+        default=["assets/voice_styles/F2.json"],
         help="Voice style file path(s). Can specify multiple files for batch processing",
     )
     parser.add_argument(
@@ -75,9 +75,9 @@ voice_style_paths = args.voice_style
 text_list = args.text
 batch = args.batch
 
-assert len(voice_style_paths) == len(
-    text_list
-), f"Number of voice styles ({len(voice_style_paths)}) must match number of texts ({len(text_list)})"
+assert len(voice_style_paths) == len(text_list), (
+    f"Number of voice styles ({len(voice_style_paths)}) must match number of texts ({len(text_list)})"
+)
 bsz = len(voice_style_paths)
 
 # --- 2. Load Text to Speech --- #
@@ -88,7 +88,7 @@ style = load_voice_style(voice_style_paths, verbose=True)
 
 # --- 4. Synthesize Speech --- #
 for n in range(n_test):
-    print(f"\n[{n+1}/{n_test}] Starting synthesis...")
+    print(f"\n[{n + 1}/{n_test}] Starting synthesis...")
     with timer("Generating speech from text"):
         if batch:
             wav, duration = text_to_speech.batch(text_list, style, total_step, speed)
@@ -97,7 +97,7 @@ for n in range(n_test):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     for b in range(bsz):
-        fname = f"{sanitize_filename(text_list[b], 20)}_{n+1}.wav"
+        fname = f"{sanitize_filename(text_list[b], 20)}_{n + 1}.wav"
         w = wav[b, : int(text_to_speech.sample_rate * duration[b].item())]  # [T_trim]
         sf.write(os.path.join(save_dir, fname), w, text_to_speech.sample_rate)
         print(f"Saved: {save_dir}/{fname}")
